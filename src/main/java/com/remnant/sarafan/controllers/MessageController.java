@@ -1,12 +1,15 @@
 package com.remnant.sarafan.controllers;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
-import com.remnant.sarafan.exceptions.NotFoundException;
+import com.fasterxml.jackson.annotation.JsonView;
+import com.remnant.sarafan.domain.Message;
+import com.remnant.sarafan.domain.jsonViews.MessageView;
+import com.remnant.sarafan.repositories.MessageRepository;
 
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,50 +20,46 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("message")
+@RequestMapping("messages")
 public class MessageController {
-    private int counter = 4;
-    private List<Map<String, String>> messages = new ArrayList<Map<String, String>>() {{
-        add(new HashMap<String, String>() {{ put("id", "1"); put("text", "First Message"); }});
-        add(new HashMap<String, String>() {{ put("id", "2"); put("text", "Second Message"); }});
-        add(new HashMap<String, String>() {{ put("id", "3"); put("text", "Third Message"); }});
-    }};
+    private final MessageRepository messageRepository;
+
+    @Autowired
+    public MessageController(MessageRepository messageRepository) {
+        this.messageRepository = messageRepository;
+    }
 
     @GetMapping
-    public List<Map<String, String>> list() {
-        return messages;
+    @JsonView(MessageView.IdName.class)
+    public List<Message> list() {
+        return messageRepository.findAll();
     }
     
     @GetMapping("{id}")
-    public Map<String, String> show(@PathVariable String id) {
-        return search(id);
+    @JsonView(MessageView.IdName.class)
+    public Message show(@PathVariable("id") Message message) {
+        return message;
     }
 
     @PostMapping
-    public Map<String, String> store(@RequestBody Map<String, String> message) {
-        message.put("id", String.valueOf(counter++));
-        messages.add(message);
-
+    public Message store(@RequestBody Message message) {
+        message.setCreationDate(LocalDateTime.now());
+        messageRepository.save(message);
         return message;
     }
 
     @PutMapping("{id}")
-    public Map<String, String> update(@PathVariable String id, @RequestBody Map<String, String> message) {
-        Map<String, String> messageFound = search(id);
-        messageFound.putAll(message);
-        messageFound.put("id", id);
+    public Message update(
+        @PathVariable("id") Message currentMessage,
+        @RequestBody Message message
+    ) {
+        BeanUtils.copyProperties(message, currentMessage, "id");
 
-        return messageFound;
+        return messageRepository.save(currentMessage);
     }
 
     @DeleteMapping("{id}")
-    public void delete(@PathVariable String id) {
-        Map<String, String> message = search(id);
-        messages.remove(message);
-    }
-
-    private Map<String, String> search(String id) {
-        return messages.stream().filter(message -> message.get("id").equals(id)).findFirst()
-                .orElseThrow(NotFoundException::new);
+    public void delete(@PathVariable("id") Message message) {
+        messageRepository.delete(message);
     }
 }

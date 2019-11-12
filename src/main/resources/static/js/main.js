@@ -1,4 +1,4 @@
-var messageApi = Vue.resource('/message{/id}');
+var messageApi = Vue.resource('/messages{/id}');
 
 Vue.component('message-add', {
     data() {
